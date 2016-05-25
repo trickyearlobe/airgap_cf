@@ -1,0 +1,1032 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Airgap Playground",
+  "Parameters": {
+    "SSHKey": {
+      "Description": "The AWS keypair that allows you to log in",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "Default": "transformation_staff"
+    },
+    "AMI": {
+      "Description": "A valid AWS AMI in this region that uses EBS volumes",
+      "Type": "String",
+      "Default": "ami-fedafc9d"
+    }
+  },
+
+  "Resources": {
+
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "192.168.0.0/16",
+        "InstanceTenancy": "default",
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"VPC"]] }
+          }
+        ]
+      }
+    },
+
+    "INTERNET": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"internet gateway"]] }
+          }
+        ]
+      }
+    },
+    "GATEWAY": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "InternetGatewayId": {
+          "Ref": "INTERNET"
+        }
+      }
+    },
+    "SERVERS": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "192.168.56.0/24",
+        "AvailabilityZone": "ap-southeast-2a",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"server subnet"]] }
+          }
+        ]
+      }
+    },
+
+    "CHEF": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Chef Server"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "50" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.43",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgChef"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+    "DELIVERY": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Delivery Server"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "50" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.46",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgDelivery"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+    "BUILDER1": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Builder 1"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "50" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.47",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgBuilder"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+    "BUILDER2": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Builder 2"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "50" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.48",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgBuilder"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+    "BUILDER3": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Builder 3"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "50" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.49",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgBuilder"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+    "SUPERMARKET": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Supermarket Server"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "50" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.44",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgSuperMarket"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+    "ARTIFACTORY": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Artifactory Server"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "70" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.100",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgArtifactory"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+
+    "ACCEPTANCE": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Acceptance node"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "30" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.51",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgAppNode"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+    "UNION": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Union node"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "30" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.50",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgAppNode"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+    "REHEARSAL": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Rehearsal node"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "30" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.52",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgAppNode"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+    "DELIVERED": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "DisableApiTermination": "false",
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "ImageId": {"Ref": "AMI"},
+        "InstanceType": "t2.medium",
+        "KeyName": {"Ref": "SSHKey"},
+        "Monitoring": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Delivered node"]] }
+          }
+        ],
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sda1",
+            "Ebs" : { "VolumeSize" : "30" }
+          }
+        ],
+        "NetworkInterfaces": [
+          {
+            "DeleteOnTermination": "true",
+            "Description": "Primary network interface",
+            "DeviceIndex": "0",
+            "SubnetId": {
+              "Ref": "SERVERS"
+            },
+            "PrivateIpAddresses": [
+              {
+                "PrivateIpAddress": "192.168.56.53",
+                "Primary": "true"
+              }
+            ],
+            "GroupSet": [
+              {
+                "Ref": "sgAppNode"
+              }
+            ],
+            "AssociatePublicIpAddress": "true"
+          }
+        ]
+      }
+    },
+
+    "sgChef": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Chef Server Security Group",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Chef server security group"]] }
+          }
+        ]
+      }
+    },
+    "sgChefIngressHTTP": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgChef"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "80",
+        "ToPort": "80",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgChefIngressHTTPS": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgChef"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "443",
+        "ToPort": "443",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgChefIngressSSH": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgChef"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "22",
+        "ToPort": "22",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgChefIngressPushy": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgChef"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "10000",
+        "ToPort": "10003",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgChefEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgChef"
+        },
+        "IpProtocol": "-1",
+        "CidrIp": "192.168.0.0/16"
+      }
+    },
+
+
+    "sgDelivery": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Delivery Server Security Group",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Delivery server security group"]] }
+          }
+        ]
+      }
+    },
+    "sgDeliveryIngressHTTP": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgDelivery"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "80",
+        "ToPort": "80",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgDeliveryIngressHTTPS": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgDelivery"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "443",
+        "ToPort": "443",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgDeliveryIngressSSH": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgDelivery"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "22",
+        "ToPort": "22",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgDeliveryIngressGIT": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgDelivery"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "8989",
+        "ToPort": "8989",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgDeliveryEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgDelivery"
+        },
+        "IpProtocol": "-1",
+        "CidrIp": "192.168.0.0/16"
+      }
+    },
+
+    "sgBuilder": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Build Node Security Group",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Build node security group"]] }
+          }
+        ]
+      }
+    },
+    "sgBuilderIngressSSH": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgBuilder"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "22",
+        "ToPort": "22",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgBuilderEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgBuilder"
+        },
+        "IpProtocol": "-1",
+        "CidrIp": "192.168.0.0/16"
+      }
+    },
+
+    "sgSuperMarket": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Supermarket Server Security Group",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Supermarket server security group"]] }
+          }
+        ]
+      }
+    },
+    "sgBuilderIngressSSH": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgBuilder"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "22",
+        "ToPort": "22",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgBuilderEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgBuilder"
+        },
+        "IpProtocol": "-1",
+        "CidrIp": "192.168.0.0/16"
+      }
+    },
+
+    "sgArtifactory": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Artifactory Security Group",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"Artifactory server security group"]] }
+          }
+        ]
+      }
+    },
+    "sgArtifactoryIngressHTTP": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgArtifactory"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "80",
+        "ToPort": "80",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgArtifactoryIngressHTTPS": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgArtifactory"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "443",
+        "ToPort": "443",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgArtifactoryIngressSSH": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgArtifactory"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "22",
+        "ToPort": "22",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgArtifactoryEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgArtifactory"
+        },
+        "IpProtocol": "-1",
+        "CidrIp": "192.168.0.0/16"
+      }
+    },
+
+    "sgAppNode": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Application Node Security Group",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"App node security group"]] }
+          }
+        ]
+      }
+    },
+    "sgAppNodeIngressHTTP": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgAppNode"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "80",
+        "ToPort": "80",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgAppNodeIngressHTTPS": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgAppNode"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "443",
+        "ToPort": "443",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgAppNodeIngressSSH": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgAppNode"
+        },
+        "IpProtocol": "tcp",
+        "FromPort": "22",
+        "ToPort": "22",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "sgAppNodeEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgAppNode"
+        },
+        "IpProtocol": "-1",
+        "CidrIp": "192.168.0.0/16"
+      }
+    },
+
+
+    "NETACL": {
+      "Type": "AWS::EC2::NetworkAcl",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"network ACL"]] }
+          }
+        ]
+      }
+    },
+    "NETACL1": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "CidrBlock": "0.0.0.0/0",
+        "Egress": "true",
+        "Protocol": "-1",
+        "RuleAction": "allow",
+        "RuleNumber": "100",
+        "NetworkAclId": {
+          "Ref": "NETACL"
+        }
+      }
+    },
+    "NETACL2": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "CidrBlock": "0.0.0.0/0",
+        "Protocol": "-1",
+        "RuleAction": "allow",
+        "RuleNumber": "100",
+        "NetworkAclId": {
+          "Ref": "NETACL"
+        }
+      }
+    },
+    "NETACLASSOC": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "NETACL"
+        },
+        "SubnetId": {
+          "Ref": "SERVERS"
+        }
+      }
+    },
+
+    "ROUTETABLE": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": { "Fn::Join": [ " ", [ {"Ref":"AWS::StackName"},"routing table"]] }
+          }
+        ]
+      }
+    },
+    "ROUTETABLEASSOCIATION": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "ROUTETABLE"
+        },
+        "SubnetId": {
+          "Ref": "SERVERS"
+        }
+      }
+    },
+    "DEFAULTROUTE": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "RouteTableId": {
+          "Ref": "ROUTETABLE"
+        },
+        "GatewayId": {
+          "Ref": "INTERNET"
+        }
+      },
+      "DependsOn": "GATEWAY"
+    },
+
+    "DHCPOPT": {
+      "Type": "AWS::EC2::DHCPOptions",
+      "Properties": {
+        "DomainName": "myorg.chefdemo.net",
+        "DomainNameServers": [
+          "AmazonProvidedDNS"
+        ]
+      }
+    },
+    "DHCPASSOC": {
+      "Type": "AWS::EC2::VPCDHCPOptionsAssociation",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "DhcpOptionsId": {
+          "Ref": "DHCPOPT"
+        }
+      }
+    }
+  }
+}
